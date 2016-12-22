@@ -1,0 +1,61 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "25.0.2"
+
+    defaultConfig {
+        minSdkVersion 9
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    sourceSets {
+        main {
+            jni.srcDirs = []//设置禁止gradle生成Android.mk
+            jniLibs.srcDirs = ['src/main/jniLibs']//设置目标的so存放路径
+        }
+    }
+    tasks.withType(JavaCompile) {
+        compileTask -> compileTask.dependsOn 'ndkBuild','copyThirdso', 'copyJniLibs'
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    compile 'com.android.support:appcompat-v7:25.1.0'
+    testCompile 'junit:junit:4.12'
+}
+
+
+task ndkBuild(type: Exec) {//设置新的so的生成目录
+
+    def ndkBuildingDir = project.plugins.findPlugin('com.android.library').sdkHandler.getNdkFolder().absolutePath
+    commandLine ndkBuildingDir + "/ndk-build", '-C', 'src/main/jni',
+            "NDK_OUT=$buildDir/intermediates/ndk/obj",
+            "NDK_APP_DST_DIR=$buildDir/intermediates/ndk/libs/\$(TARGET_ARCH_ABI)"
+}
+
+task copyJniLibs(type: Copy) {//将新生成的so拷贝到jniLibs目录
+    from fileTree(dir: file(buildDir.absolutePath + '/intermediates/ndk/libs'), include: '**/*.so')
+    into file('src/main/jniLibs')
+}
+
+task copyThirdso(type: Copy) {//将第三方的so拷贝到jniLibs目录
+    from file('src/main/jni/vvw/libs')
+    into file('src/main/jniLibs')
+}
+
+

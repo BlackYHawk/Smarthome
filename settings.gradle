@@ -1,0 +1,1 @@
+include ':app', ':foundation', ':mp4v2', ':jsoncpp'
