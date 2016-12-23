@@ -9,42 +9,31 @@ android {
         targetSdkVersion rootProject.ext.android.targetSdkVersion
         versionCode rootProject.ext.android.versionCode
         versionName rootProject.ext.android.versionName
-
-        ndk {
-            moduleName "mp4v2"
-            //stl "stlport_shared"
-            ldLibs "log", "z", "m"
-            //cFlags "-Wall -Wextra -I " + projectDir + "/src/main/jni/include"
-            abiFilters "armeabi", "armeabi-v7a", "x86"
-        }
     }
     sourceSets.main {
         jni.srcDirs = [] // This prevents the auto generation of Android.mk
         jniLibs.srcDir 'src/main/libs' // This is not necessary unless you have precompiled libraries in your project.
     }
-    buildTypes {
+    tasks.withType(JavaCompile) {
+        compileTask -> compileTask.dependsOn 'ndkBuild','copyThirdso', 'copyJniLibs'
+    }
+}
 
-    }
-    productFlavors {
-        x86 {
-            versionCode Integer.parseInt("6" + defaultConfig.versionCode)
-            ndk {
-                abiFilter "x86"
-            }
-        }
-        armv7 {
-            versionCode Integer.parseInt("2" + defaultConfig.versionCode)
-            ndk {
-                abiFilter "armeabi-v7a"
-            }
-        }
-        arm {
-            versionCode Integer.parseInt("1" + defaultConfig.versionCode)
-            ndk {
-                abiFilters "armeabi", "armeabi-v7a"
-            }
-        }
-        fat
-    }
+task ndkBuild(type: Exec) {//设置新的so的生成目录
+
+    def ndkBuildingDir = project.plugins.findPlugin('com.android.library').sdkHandler.getNdkFolder().absolutePath
+    commandLine ndkBuildingDir + "/ndk-build.cmd", '-C', 'src/main/jni',
+            "NDK_OUT=$buildDir/intermediates/ndk/obj",
+            "NDK_APP_DST_DIR=$buildDir/intermediates/ndk/libs/\$(TARGET_ARCH_ABI)"
+}
+
+task copyJniLibs(type: Copy) {//将新生成的so拷贝到jniLibs目录
+    from fileTree(dir: file(buildDir.absolutePath + '/intermediates/ndk/libs'), include: '**/*.so')
+    into file('src/main/jniLibs')
+}
+
+task copyThirdso(type: Copy) {//将第三方的so拷贝到jniLibs目录
+    from file('src/main/jni/vvw/libs')
+    into file('src/main/jniLibs')
 }
 
